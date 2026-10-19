@@ -1,0 +1,9 @@
+.venv/
+node_modules/
+models/
+songs/
+.claude/artifacts/
+.claude/handoffs/
+.server.log
+__pycache__/
+.venv-mlx/
