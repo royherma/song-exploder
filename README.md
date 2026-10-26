@@ -36,6 +36,14 @@ drum hits land on A's (`bin/mix_align.py`; the beat tracker alone was half a bea
 an iframe of this page (`/?frame=b&song=<slug>`, wired in `public/songb.js`). Export mix renders A + B as one WAV.
 B's MIDI instrument swaps are not played (they would not follow the re-timing).
 
+## Your voice + auto-tune
+
+`Record` in the top bar sings over the song from the playhead (▾ picks the mic; wear headphones). The take lands
+as its own mixer row, lined up with the song. Hover the vocals row or a take row and press `TUNE`: Off / Natural /
+Hard, plus Dry / Studio / Big / Phone effects; `Advanced` has strength, speed, vibrato, note hold, voice and FX amount.
+Notes snap to the song's key and to the chord playing at that moment (`bin/tune.py`, WORLD vocoder, 8 s chunks, 4 at
+a time); effects are `bin/voicefx.py` (pedalboard). Results are cached under `songs/<song>/voice/`.
+
 ## What the grade means
 
 The rebuild is synthesized only from what the pipeline extracted (drum hits played with one-shots cut from

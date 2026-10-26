@@ -11,3 +11,5 @@ soundfile==0.14.0
 tensorflow==2.16.2
 torch==2.14.1
 transformers==5.20.0
+pedalboard==0.9.26
+pyworld-prebuilt==0.3.6.post1

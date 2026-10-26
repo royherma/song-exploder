@@ -109,3 +109,5 @@ wheel==0.48.0
 wrapt==2.5.1
 yt-dlp==2026.8.19
 yt-dlp-ejs==0.8.0
+pedalboard==0.9.26
+pyworld-prebuilt==0.3.6.post1

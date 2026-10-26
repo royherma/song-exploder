@@ -435,6 +435,70 @@ function stretchFile(slug, rel, tempo, semis) {
 
 const body = req => new Promise(r => { const c = []; req.on('data', d => c.push(d)); req.on('end', () => r(Buffer.concat(c))); });
 
+const VOICE_FX = ['dry', 'studio', 'big', 'phone'], VOICE_CHUNK = 8;
+const VOICE_KNOBS = { str: [0, 100], spd: [0, 200], vib: [0, 100], hold: [0, 200], fmt: [-6, 6], mix: [0, 100] };
+const voiceDir = (slug, id) => path.join(SONGS, slug, 'voice', id || '');
+const wavSecs = f => { const h = Buffer.alloc(44), fd = fs.openSync(f, 'r'); fs.readSync(fd, h, 0, 44, 0); fs.closeSync(fd);
+  return (fs.statSync(f).size - 44) / h.readUInt32LE(28); };
+function voiceTakes(slug) {
+  const d = voiceDir(slug);
+  if (!fs.existsSync(d)) return [];
+  const ids = fs.readdirSync(d).filter(id => /^t[\d-]+$/.test(id) && fs.existsSync(path.join(d, id, 'take.json'))).sort();
+  return ids.map((id, i) => ({ id, name: `take ${i + 1}`, ...readJSON(path.join(d, id, 'take.json'), {}) }));
+}
+const reportPath = slug => {
+  const rd = path.join(SONGS, slug, 'runs');
+  return path.join(rd, fs.readdirSync(rd).filter(r => fs.existsSync(path.join(rd, r, 'report.json'))).sort().pop(), 'report.json');
+};
+let tuneSlots = 4;
+const tuneQueue = [];
+async function tuneLimited(fn) {
+  if (tuneSlots > 0) tuneSlots--; else await new Promise(r => tuneQueue.push(r));
+  try { return await fn(); } finally { const next = tuneQueue.shift(); if (next) next(); else tuneSlots++; }
+}
+async function tuneChunk(src, out, args) {
+  if (fs.existsSync(out) && fs.existsSync(out + '.json')) return readJSON(out + '.json', {});
+  return tuneLimited(async () => {
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const o = await sh(PY, ['-I', path.join(ROOT, 'bin/tune.py'), src, out + '.part.wav', ...args]);
+    fs.renameSync(out + '.part.wav', out);
+    fs.writeFileSync(out + '.json', o.trim().split('\n').pop());
+    return readJSON(out + '.json', {});
+  });
+}
+const renders = new Map();
+function voiceRender(slug, track, k, fx) {
+  const tuned = k.str > 0 || k.fmt !== 0, sig = `s${k.str}-r${k.spd}-v${k.vib}-h${k.hold}-f${k.fmt}`, mode = tuned ? sig : 'off';
+  const r = latestReport(slug), take = track === 'vocals' ? null : voiceTakes(slug).find(t => t.id === track);
+  const src = take ? path.join(voiceDir(slug, track), 'raw.wav') : path.join(SONGS, slug, 'stems/vocals.wav');
+  const dir = voiceDir(slug, track === 'vocals' ? 'singer' : track), name = `${mode}-${fx}-m${k.mix}.mp3`, out = path.join(dir, 'render', name);
+  const done = () => ({ state: 'done', url: `/songs/${slug}/voice/${track === 'vocals' ? 'singer' : track}/render/${name}`, ...readJSON(out + '.json', {}) });
+  if (fs.existsSync(out) && fs.existsSync(out + '.json')) return done();
+  if (renders.has(out)) return renders.get(out).state;
+  const job = { state: { state: 'busy', pct: 0 } };
+  renders.set(out, job);
+  (async () => {
+    const at = take ? take.at : 0, secs = take ? wavSecs(src) : r.duration, n = Math.max(1, Math.ceil(secs / VOICE_CHUNK));
+    let inputs = [src], stats = {};
+    if (tuned) {
+      let got = 0;
+      const res = await Promise.all(Array.from({ length: n }, (_, i) => tuneChunk(src, path.join(dir, mode, `c${i}.wav`),
+        ['--report', reportPath(slug), '--at', String(at), '--start', String(i * VOICE_CHUNK), '--dur', String(VOICE_CHUNK), '--strength', String(k.str), '--speed', String(k.spd), '--vibrato', String(k.vib), '--hold', String(k.hold), '--formant', String(k.fmt)])
+        .then(s => { job.state = { state: 'busy', pct: Math.round(++got / n * 95) }; return s; })));
+      inputs = res.map((_, i) => path.join(dir, mode, `c${i}.wav`));
+      const w = res.reduce((a, s) => a + (s.voiced || 0), 0) || 1, avg = k => +(res.reduce((a, s) => a + (s[k] || 0) * (s.voiced || 0), 0) / w).toFixed(1);
+      stats = { in_tune_before: avg('in_tune_before'), in_tune_after: avg('in_tune_after'), cents_before: avg('cents_before'), cents_after: avg('cents_after') };
+    }
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    const o = await sh(PY, ['-I', path.join(ROOT, 'bin/voicefx.py'), out + '.part', ...inputs, '--fx', fx, '--mix', String(k.mix), '--bpm', String(r.rhythm?.bpm || 0),
+      '--at', String(at), '--total', String(r.duration || 0)]);
+    fs.renameSync(out + '.part', out);
+    fs.writeFileSync(out + '.json', JSON.stringify({ ...JSON.parse(o.trim().split('\n').pop()), ...stats }));
+  })().catch(e => { const m = String(e.message || e); job.state = { state: 'fail', error: /No module named '(pyworld|pedalboard)'/.test(m) ? 'Auto-tune needs one more install step: run the setup command in Terminal again, then reload this page' : m.slice(0, 200) }; })
+    .finally(() => { if (job.state.state !== 'fail') renders.delete(out); else setTimeout(() => renders.delete(out), 10000); });
+  return job.state;
+}
+
 http.createServer(async (req, res) => {
   if (!guard(req, res)) return;
   const url = new URL(req.url, 'http://x');
@@ -473,6 +537,31 @@ http.createServer(async (req, res) => {
       return json(JSON.parse(out.trim().split('\n').pop()));
     }
     if (p === '/api/stage-times') return json(stageTimes());
+    if (p.startsWith('/api/voice/')) {
+      const q = Object.fromEntries(url.searchParams);
+      if (!/^[\w-]+$/.test(q.slug || '') || !latestReport(q.slug)) return json({ error: 'open a song that has finished loading first' }, 400);
+      if (p === '/api/voice/takes') return json(voiceTakes(q.slug));
+      if (p === '/api/voice/take' && req.method === 'POST') {
+        const at = +q.at;
+        if (!(at >= 0)) return json({ error: 'need at (song seconds)' }, 400);
+        const id = runId().replace(/^r/, 't'), dir = voiceDir(q.slug, id);
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, 'raw.wav'), await body(req));
+        fs.writeFileSync(path.join(dir, 'take.json'), JSON.stringify({ at: +at.toFixed(3), made: new Date().toISOString() }));
+        return json(voiceTakes(q.slug).find(t => t.id === id));
+      }
+      if (p === '/api/voice/render') {
+        const k = Object.fromEntries(Object.entries(VOICE_KNOBS).map(([n, [lo, hi]]) => [n, Math.round(Math.min(hi, Math.max(lo, +q[n] || 0)))]));
+        if (!(q.track === 'vocals' || voiceTakes(q.slug).some(t => t.id === q.track)) || !VOICE_FX.includes(q.fx))
+          return json({ error: `need track (vocals or a take id), fx (${VOICE_FX}), knobs ${Object.keys(VOICE_KNOBS)}` }, 400);
+        return json(voiceRender(q.slug, q.track, k, q.fx));
+      }
+      if (p === '/api/voice/delete' && req.method === 'POST' && /^t[\d-]+$/.test(q.id || '') && fs.existsSync(voiceDir(q.slug, q.id))) {
+        fs.mkdirSync(path.join(SONGS, '.trash'), { recursive: true });
+        fs.renameSync(voiceDir(q.slug, q.id), path.join(SONGS, '.trash', `${q.slug}-${q.id}-${Date.now().toString(36)}`));
+        return json({ ok: true });
+      }
+    }
     let sf;
     if ((sf = SF_RE.exec(p))) return sendCached(res, await soundfont(sf[1], sf[2]));
     if ((sf = DM_RE.exec(p))) return sendCached(res, await drumFile(sf[1], sf[2]));
