@@ -16,7 +16,7 @@ const SF_RE = /^\/sf\/(MusyngKite|FluidR3_GM)\/([a-z0-9_]+-(?:ogg|mp3)\.js)$/;
 // The TG Tools site may drive this server from the browser; every other site is refused.
 const WEB_ORIGINS = new Set(['https://tools.techguyverlabs.org', 'http://localhost:4920', 'http://127.0.0.1:4920']);
 const LOCAL_HOST = /^(([\w-]+\.)*localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
-const PKG_VERSION = 1;
+const PKG_VERSION = 2;
 
 function guard(req, res) {
   if (!LOCAL_HOST.test(req.headers.host || '')) return res.writeHead(403).end('bad host'), false;
