@@ -16,7 +16,7 @@ const SF_RE = /^\/sf\/(MusyngKite|FluidR3_GM)\/([a-z0-9_]+-(?:ogg|mp3)\.js)$/;
 // The TG Tools site may drive this server from the browser; every other site is refused.
 const WEB_ORIGINS = new Set(['https://tools.techguyverlabs.org', 'http://localhost:4920', 'http://127.0.0.1:4920']);
 const LOCAL_HOST = /^(([\w-]+\.)*localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
-const PKG_VERSION = 2;
+const PKG_VERSION = 3;
 
 function guard(req, res) {
   if (!LOCAL_HOST.test(req.headers.host || '')) return res.writeHead(403).end('bad host'), false;
@@ -57,10 +57,26 @@ function songList() {
       const ev = path.join(runsDir, last, 'events.jsonl');
       if (fs.existsSync(ev) && Date.now() - fs.statSync(ev).mtimeMs < 90000 && !/"stage":\s*"run",\s*"status":\s*"(done|fail)"/.test(fs.readFileSync(ev, 'utf8'))) live = last;
     }
+    const history = readJSON(path.join(SONGS, slug, 'history.json'), []);
+    const scores = history.map(h => h.overall).filter(Number.isFinite);
     return { slug, title: meta.title || slug, runs, running: live, thumb: meta.thumb || null, author: meta.author || null, fetching: !!running.get(slug)?.fetching,
+      added: fs.statSync(path.join(SONGS, slug, 'song.json')).birthtimeMs, best: scores.length ? Math.max(...scores) : null, poster: poster(slug, meta),
       video: meta.video ? `/songs/${slug}/${meta.video}` : null, video_offset: meta.video_offset || 0,
-      history: readJSON(path.join(SONGS, slug, 'history.json'), []) };
+      history };
   });
+}
+
+const posting = new Set();
+function poster(slug, meta) {
+  const out = path.join(SONGS, slug, 'poster.jpg');
+  if (fs.existsSync(out)) return `/songs/${slug}/poster.jpg`;
+  if (!meta.video || posting.has(slug)) return null;
+  posting.add(slug);
+  const src = path.join(SONGS, slug, meta.video), vf = 'thumbnail=90,scale=240:-2';
+  sh('ffmpeg', ['-y', '-v', 'error', '-ss', '30', '-i', src, '-vf', vf, '-frames:v', '1', '-q:v', '4', out])
+    .then(() => fs.existsSync(out) || sh('ffmpeg', ['-y', '-v', 'error', '-i', src, '-vf', vf, '-frames:v', '1', '-q:v', '4', out]))
+    .catch(() => {}).finally(() => posting.delete(slug));
+  return null;
 }
 
 function startRun(slug, opts = {}) {

@@ -30,7 +30,42 @@ button{cursor:pointer}
 .wm span{background:linear-gradient(90deg,var(--accent),var(--accent2) 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
 select,input[type=text]{background:rgba(5,6,10,.7);border:1px solid var(--line2);border-radius:8px;height:30px;padding:0 9px;outline:none;box-shadow:inset 0 1px 3px rgba(0,0,0,.5)}
 select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,196,255,.15)}
-#song{max-width:210px}
+#song{display:none}
+.spk{position:relative}
+#songbtn{display:flex;align-items:center;gap:9px;width:270px;height:38px;padding:0 10px 0 4px;border-radius:9px;border:1px solid var(--line2);background:rgba(5,6,10,.7);box-shadow:inset 0 1px 3px rgba(0,0,0,.5);text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+#songbtn:hover,#songbtn.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,196,255,.15)}
+#songbtn .sp-cv{width:30px;height:30px}
+.sp-chev{width:12px;height:12px;color:var(--mute);margin-left:auto;flex:none;transition:transform .15s}
+#songbtn.on .sp-chev{transform:rotate(180deg)}
+.sp-cv{flex:none;width:64px;height:36px;border-radius:6px;overflow:hidden;background:var(--panel2);display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.sp-cv img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-gen{font:600 15px var(--disp);color:rgba(255,255,255,.92)}
+.sp-tx{display:flex;flex-direction:column;min-width:0;gap:2px}
+.sp-tx b{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-tx small{font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#songpop{position:absolute;top:44px;left:0;z-index:60;width:520px;max-height:min(620px,calc(100vh - 80px));display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 24px 60px -12px rgba(0,0,0,.9),0 0 0 1px rgba(124,196,255,.06)}
+#songpop.on{display:flex}
+.sp-head{display:flex;flex-direction:column;gap:8px;padding:10px;border-bottom:1px solid var(--line)}
+#sp-q{width:100%;height:32px}
+.sp-bar{display:flex;align-items:center;gap:8px}
+#sp-sort{display:flex;gap:2px;padding:2px;border-radius:8px;background:rgba(5,6,10,.7);border:1px solid var(--line)}
+#sp-sort button{height:24px;padding:0 10px;border-radius:6px;border:0;background:none;color:var(--mute);font-size:12px;font-weight:600;cursor:pointer}
+#sp-sort button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+#sp-n{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
+#sp-list{overflow:auto;padding:6px;min-height:0}
+.sp-row{display:flex;align-items:center;gap:11px;padding:6px 8px;border-radius:8px;cursor:pointer}
+.sp-row.hi{background:rgba(124,196,255,.08)}
+.sp-row.cur{box-shadow:inset 3px 0 0 var(--accent);background:rgba(124,196,255,.05)}
+.sp-row.cur.hi{background:rgba(124,196,255,.12)}
+.sp-row .sp-tx{flex:1}
+.sp-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none}
+.sp-meta small{font:500 11px var(--mono);color:var(--dim);white-space:nowrap}
+.sp-meta i{font-style:normal;color:var(--good)}
+.sp-g{font:600 12px var(--mono);font-style:normal;padding:1px 7px;border-radius:6px;color:var(--dim);background:rgba(255,255,255,.04)}
+.sp-g.good{color:var(--good);background:rgba(82,230,160,.1)}
+.sp-g.ok{color:var(--warn);background:rgba(255,193,90,.1)}
+.sp-g.low{color:var(--bad);background:rgba(255,107,122,.1)}
+.sp-empty{padding:24px;text-align:center;color:var(--mute)}
 #path{width:190px}
 .btn{height:30px;padding:0 14px;border-radius:8px;border:1px solid var(--line2);background:linear-gradient(180deg,#1d2334,#141927);font-weight:600;transition:border-color .15s,box-shadow .15s}
 .btn:hover:not(:disabled){border-color:var(--accent);box-shadow:0 0 14px -4px var(--accent)}
@@ -438,7 +473,9 @@ body.pdrag *{user-select:none}
 <div class="app">
   <header class="top">
     <div class="brand"><svg class="logo" viewBox="0 0 26 26" fill="none"><defs><linearGradient id="lg" x1="0" y1="0" x2="26" y2="26"><stop stop-color="#8ad0ff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect x="1" y="1" width="24" height="24" rx="7" fill="#0b0e16" stroke="url(#lg)" stroke-opacity=".6"/><g fill="url(#lg)"><rect x="5" y="11" width="2.6" height="4" rx="1.3"/><rect x="9.2" y="7" width="2.6" height="12" rx="1.3"/><rect x="13.4" y="4.5" width="2.6" height="17" rx="1.3"/><rect x="17.6" y="9" width="2.6" height="8" rx="1.3"/></g></svg><span class="wm">Song <span>Exploder</span></span></div>
-    <select id="song" title="Song"></select>
+    <div class="spk"><button id="songbtn" type="button" title="Song"></button>
+      <div id="songpop"><div class="sp-head"><input type="text" id="sp-q" placeholder="Search songs or artists" spellcheck="false"><div class="sp-bar"><div id="sp-sort"></div><span id="sp-n"></span></div></div><div id="sp-list"></div></div>
+      <select id="song" title="Song"></select></div>
     <select id="runsel" title="Run"></select>
     <button class="btn pri" id="again">Run again</button>
     <div class="sp"></div>
@@ -707,6 +744,7 @@ function fillSelects(){
   const ss=$('#song');
   ss.innerHTML=S.songs.length?S.songs.map(s=>`<option value="${esc(s.slug)}">${esc(s.title)}</option>`).join(''):'<option value="">No songs yet</option>';
   if(S.slug)ss.value=S.slug;
+  if(window.SongPick)SongPick.render();
   const rs=$('#runsel');const song=curSong();const runs=song?song.runs.slice().reverse():[];
   rs.innerHTML=runs.length?runs.map(r=>`<option value="${esc(r)}">${esc(runLabel(r))}${song.running===r?' (live)':''}</option>`).join(''):'<option value="">no runs</option>';
   if(S.run)rs.value=S.run;
@@ -1839,6 +1877,7 @@ loadStageTimes();
 setInterval(()=>{if(S.live||S.runStatus==='running'){renderPipe();renderLive()}},1000);
 requestAnimationFrame(frame);
 </script>
+<script src="/public/songpick.js"></script>
 <script src="/public/songb.js"></script>
 <script src="/public/voice.js"></script>
 <script src="/public/remember.js"></script>
