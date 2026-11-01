@@ -1,79 +1,121 @@
-# Song Exploder (folder: song-reverse)
+<p align="center">
+  <img src="docs/images/hero.jpg" alt="Song Exploder: Kanye West's Heartless split into stems, with Gunna's Pop It loaded as Song B" width="100%">
+</p>
 
-Song in, everything it is made of out: stems, drum parts, tempo, key, chords, notes, drum patterns,
-instrument names, a MIDI file - then it rebuilds the beat from what it learned and grades the rebuild
-against the original, so every change to the pipeline shows up as a number that goes up or down.
+<h1 align="center">Song Exploder</h1>
 
-```
-song.mp3
-  └─ load ─► stems (htdemucs_6s: vocals drums bass guitar piano other)
-               └─ drums (MDX23C DrumSep: kick snare toms hh ride crash)
-                    └─ tempo + beats + sections ─► key + chords ─► notes (Basic Pitch)
-                         └─ drum hits + 16-step patterns ─► instrument names (CLAP)
-                              └─ rebuild the beat ─► grade vs original beat ─► tune: try changes, keep what scores higher
-```
+<p align="center">
+  <b>Every song is a recipe. Read it</b><br>
+  Drop in any song and hear the vocals, drums, bass and chords on their own. Runs on your Mac.
+</p>
 
-## Run
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#hear-every-part-on-its-own">Features</a> ·
+  <a href="#it-grades-itself">The grade</a> ·
+  <a href="docs/HOW-IT-WORKS.md">How it works</a> ·
+  <a href="https://tools.techguyverlabs.org/t/song-exploder">Try it in the browser</a>
+</p>
+
+---
+
+Paste a YouTube link or drop an MP3. A few minutes later you have:
+
+- **6 stems**: vocals, drums, bass, guitar, piano, other
+- **6 drum parts**: kick, snare, toms, hi-hat, ride, crash
+- **Tempo, key and chords**, with every beat on a grid
+- **A MIDI file** of the bass, guitar, piano and other parts
+- **The name of each instrument**: "808 bass", "rap vocals", "hammond organ"
+- **A rebuilt beat**, made only from what it found, graded against the original
+
+Everything runs on your own machine. Your songs never leave it.
+
+## Install
+
+You need a Mac with Apple silicon, [Homebrew](https://brew.sh) and about 6 GB of free disk.
 
 ```sh
-node server.mjs                                   # http://song-exploder.localhost:4843 - watch runs live, drop a song on the page
-.venv/bin/python bin/reverse.py ~/Downloads/x.mp3 # same pipeline from the terminal (shows up in the page too)
-.venv/bin/python bin/reverse.py --slug gunna-pop-it --fresh   # redo stems / drum split / note maps
+brew install ffmpeg rubberband fluid-synth uv node
+git clone https://github.com/royherma/song-exploder.git
+cd song-exploder
+scripts/install.sh
+node server.mjs
 ```
 
-## Listening
+Open **http://localhost:4843** and drop a song on the page. The first song downloads the models (about 2 GB), after that it starts right away.
 
-Every stem row has a play button (just that stem). The transport has Stems / Original / Beat only / Rebuild /
-Vocals + Rebuild; press A to flip between Original and Vocals + Rebuild at the same spot - the ear test.
+**Use Claude Code?** Install it as a plugin and ask Claude to explode a song:
 
-## Song B
+```sh
+claude plugin marketplace add royherma/techguyver-tools
+claude plugin install song-exploder@techguyver-tools
+```
 
-`+ Song B` in the top bar puts a full copy of the middle section (player, stem mixer, drum hits, chords) for a second
-song next to the first. The left (pipeline) and right (grade) columns stay; the small ‹ › handle on each hides it to a thin strip, click the strip to bring it back (remembered). Both sides
-share one audio clock and one play button. B follows A: every part B plays is re-timed and re-pitched to A's tempo
-and key with `rubberband` (`/api/mix/stretch`, cached in `songs/<b>/cache/mix/`, 4 at a time), then shifted so B's
-drum hits land on A's (`bin/mix_align.py`; the beat tracker alone was half a beat off on Gunna x Drake). B runs in
-an iframe of this page (`/?frame=b&song=<slug>`, wired in `public/songb.js`). Export mix renders A + B as one WAV.
-B's MIDI instrument swaps are not played (they would not follow the re-timing).
+## Hear every part on its own
 
-## Your voice + auto-tune
+<img src="docs/images/stems.gif" alt="Soloing the bass and marimba stems while the song plays" width="100%">
 
-`Record` in the top bar sings over the song from the playhead (▾ picks the mic; wear headphones). The take lands
-as its own mixer row, lined up with the song. Hover the vocals row or a take row and press `TUNE`: Off / Natural /
-Hard, plus Dry / Studio / Big / Phone effects; `Advanced` has strength, speed, vibrato, note hold, voice and FX amount.
-Notes snap to the song's key and to the chord playing at that moment (`bin/tune.py`, WORLD vocoder, 8 s chunks, 4 at
-a time); effects are `bin/voicefx.py` (pedalboard). Results are cached under `songs/<song>/voice/`.
+Solo any stem, mute any drum part, drag a volume. Press **A** to flip between the original song and the rebuilt beat at the same spot. Download any stem with one click.
 
-## What the grade means
+## Put one song's vocals over another song's beat
 
-The rebuild is synthesized only from what the pipeline extracted (drum hits played with one-shots cut from
-each drum stem, notes played by a simple synth). It is compared to the original song minus vocals:
+<img src="docs/images/mashup.jpg" alt="Heartless and Pop It side by side, Song B re-timed to 88 bpm and shifted to A# minor" width="100%">
 
-| Part | Measures | Weight |
+Click **+ Song B** and load a second song. Song B is re-timed and re-pitched to Song A's tempo and key, then nudged so its drum hits land on Song A's. One play button runs both. **Export mix** writes the result as one WAV.
+
+## Sing over it, auto-tuned to the song
+
+<img src="docs/images/autotune.jpg" alt="Auto-tune menu on a recorded vocal take: Off, Natural, Hard, plus Dry, Studio, Big, Phone effects" width="100%">
+
+Hit **Record** and sing over any song from wherever the playhead is. Your take lands as its own row, lined up with the beat. **Tune** snaps every note to the song's key and to the chord playing at that moment, with Natural or Hard settings and Studio, Big or Phone effects.
+
+## It grades itself
+
+<img src="docs/images/score.jpg" alt="Score over time for Heartless: 61.9 at the start, 95.8 after tuning" width="420" align="right">
+
+Song Exploder rebuilds the beat using only what it pulled out: drum hits played back with one-shots cut from the song's own drum stem, and notes played by a simple synth. Then it compares that rebuild with the original:
+
+| Part | What it checks | Weight |
 | --- | --- | --- |
-| Groove | do hits land at the same moments (onset curve correlation) | 30% |
-| Harmony | same notes sounding at the same time (chroma similarity) | 25% |
-| Bass | low end under 250 Hz (dB difference) | 20% |
-| Sound | whole spectrum, 64 bands (dB difference) | 25% |
+| Groove | Do the hits land at the same moments | 30% |
+| Harmony | Are the same notes sounding at the same time | 25% |
+| Bass | The low end, under 250 Hz | 20% |
+| Sound | The whole spectrum, 64 bands | 25% |
 
-Per-part scores (kick vs kick stem, bass vs bass stem...) name the weakest part: that is the next thing to improve.
-The tune step tries each change in `TUNE_STEPS` (`bin/reverse.py`) and keeps it only if the overall grade rises;
-the best recipe is saved to `songs/<slug>/best_recipe.json` and the next run starts from it. Every run is
-appended to `songs/<slug>/history.json` - the page charts it.
+After the first pass it tries 14 changes to its own settings, one at a time, and keeps each one only if the grade goes up. On Kanye's *Heartless* that took the rebuild from **61.9 to 95.8**.
 
-## Files
+The weakest part is named on screen ("Weakest: snare 90, fix this next"), so you always know what it got wrong.
 
-`songs/<slug>/` - `source.*`, `mix.wav`, `stems/`, `drums/`, `web/` (mp3s for the page), `cache/` (note maps),
-`history.json`, `best_recipe.json`, `runs/<run>/` (`events.jsonl`, `report.json`, `song.mid`, `web/rebuild*.mp3`, `log.txt`).
+<br clear="right">
 
-Setup: `uv venv -p 3.12 .venv && uv pip install -p .venv demucs librosa soundfile audio-separator onnxruntime transformers basic-pitch "setuptools<81" "yt-dlp[default]"`. Links download with `.venv/bin/yt-dlp` (starts in 0.5 s; the standalone `~/.local/bin/yt-dlp` takes 14 s).
-Stem + drum split runs on MLX when `.venv-mlx` exists (~4x faster, same SDR): `uv venv -p 3.12 .venv-mlx && uv pip install -p .venv-mlx mlx-audio-separator==0.1.20 torch` (own venv: it needs numpy 2, basic-pitch needs 1.26; torch only converts the checkpoints once).
-Models download on first run: htdemucs_6s (torch cache), DrumSep (`models/`), CLAP (Hugging Face cache).
+## Paste a link, watch it work
 
-## Gotchas
+<img src="docs/images/link.jpg" alt="Progress screen: step 1 of 13, Get from link, with time left and ready-at time" width="100%">
 
-- Basic Pitch only finds a working model when given the `.onnx` path explicitly (`bp_model()`); its default path tries TensorFlow/CoreML and fails.
-- Basic Pitch needs `setuptools<81` (it imports `pkg_resources`).
-- Beat grid: librosa's tracker drifts and picks 2/3 tempo on trap (pop it: 86 vs real 128). `best_grid` fits fixed tempos at 2/3..2x, regresses the exact period on kick/snare/hat onsets, keeps the one with most hits on a 16th (pop it 97%, Drake 98%).
-- CLAP prompt matters: "the sound of X" tags drum stems as rap vocals; "a recording of X" tags kick/hat/808 right. Drum parts use a drum-only label list.
-- `transformers` 5 returns `BaseModelOutputWithPooling` from `get_text_features` / `get_audio_features`; use `.pooler_output`.
+Every step shows live: what it is doing, how long it took, and when the song will be ready.
+
+## Run it from the terminal
+
+```sh
+.venv/bin/python bin/reverse.py ~/Downloads/song.mp3
+```
+
+Runs started here show up in the page too. Each song gets its own folder in `songs/<name>/` with the stems, drum parts, MIDI and a full report.
+
+## Built on
+
+| Job | Model or library |
+| --- | --- |
+| Stems | [BS-RoFormer](https://github.com/nomadkaraoke/python-audio-separator) and [Demucs](https://github.com/facebookresearch/demucs) htdemucs_6s |
+| Drum parts | MDX23C DrumSep via [audio-separator](https://github.com/nomadkaraoke/python-audio-separator) |
+| Notes to MIDI | [Basic Pitch](https://github.com/spotify/basic-pitch) by Spotify |
+| Instrument names | [CLAP](https://huggingface.co/laion/clap-htsat-unfused) by LAION |
+| Tempo, key, chords | [librosa](https://librosa.org) |
+| Re-timing for mashups | [Rubber Band](https://breakfastquay.com/rubberband/) |
+| Auto-tune and effects | WORLD vocoder ([pyworld](https://github.com/JeremyCCHsu/Python-Wrapper-for-World-Vocoder)) and [pedalboard](https://github.com/spotify/pedalboard) |
+
+The full pipeline, the files it writes and the tricks behind the beat grid are in [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
+
+## License
+
+MIT. Made by [TechGuyver Labs](https://techguyverlabs.org).
