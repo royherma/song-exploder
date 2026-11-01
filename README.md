@@ -71,8 +71,6 @@ Hit **Record** and sing over any song from wherever the playhead is. Your take l
 
 ## It grades itself
 
-<img src="docs/images/score.jpg" alt="Score over time for Heartless: 61.9 at the start, 95.8 after tuning" width="420" align="right">
-
 Song Exploder rebuilds the beat using only what it pulled out: drum hits played back with one-shots cut from the song's own drum stem, and notes played by a simple synth. Then it compares that rebuild with the original:
 
 | Part | What it checks | Weight |
@@ -86,7 +84,7 @@ After the first pass it tries 14 changes to its own settings, one at a time, and
 
 The weakest part is named on screen ("Weakest: snare 90, fix this next"), so you always know what it got wrong.
 
-<br clear="right">
+<p align="center"><img src="docs/images/score.jpg" alt="Score over time for Heartless: 61.9 at the start, 95.8 after tuning" width="480"></p>
 
 ## Paste a link, watch it work
 
